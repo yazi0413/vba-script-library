@@ -12,7 +12,7 @@ Private Sub CommandButton1_Click()
     Dim l_index_f As Integer
     Dim l_index_r As Integer
     Dim dual_or_not As Boolean
-
+    
     Sheets("calibration").Visible = True
     Sheets("front").Visible = True
     Sheets("rear").Visible = True
@@ -100,43 +100,47 @@ Private Sub CommandButton1_Click()
             dual_or_not = False
         End If
 
+        If line_f <> 0 Then
 
-        'copy the data
-        msg_d = Data(line_f)
-        l = InStr(msg_d, "[")
-        r = InStr(msg_d, "]")
-        msg_dfs_off_f = Split(Mid(msg_d, l + 1, r - l - 1), " ")
 
-    '    dual microphone or not
-
-        If dual_or_not Then
-            msg_d = Data(line_r)
+            'copy the data
+            msg_d = Data(line_f)
             l = InStr(msg_d, "[")
             r = InStr(msg_d, "]")
-            msg_dfs_off_r = Split(Mid(msg_d, l + 1, r - l - 1), " ")
-        End If
+            msg_dfs_off_f = Split(Mid(msg_d, l + 1, r - l - 1), " ")
 
-        l = InStr(filename, "_fblog")
-        curvename = Mid(filename, 1, l - 1)
+        '    dual microphone or not
 
-        Sheets("front").Select
-        ActiveSheet.Range("a" & CStr(l_index_f)) = curvename & "_front"
-        If dual_or_not Then
-            Sheets("rear").Select
-            ActiveSheet.Range("a" & CStr(l_index_r)) = curvename & "_rear"
-        End If
-        Sheets("front").Select
-        ActiveSheet.Range("b" & CStr(l_index_f)).Resize(1, UBound(msg_dfs_off_f) + 1).Value = msg_dfs_off_f
-        If dual_or_not Then
-            Sheets("rear").Select
-            ActiveSheet.Range("b" & CStr(l_index_r)).Resize(1, UBound(msg_dfs_off_r) + 1).Value = msg_dfs_off_r
-        End If
+            If dual_or_not Then
+                msg_d = Data(line_r)
+                l = InStr(msg_d, "[")
+                r = InStr(msg_d, "]")
+                msg_dfs_off_r = Split(Mid(msg_d, l + 1, r - l - 1), " ")
+            End If
 
-        If dual_or_not Then
-            l_index_f = l_index_f + 1
-            l_index_r = l_index_r + 1
-        Else
-            l_index_f = l_index_f + 1
+            l = InStr(filename, "_fblog")
+            curvename = Mid(filename, 1, l - 1)
+
+            Sheets("front").Select
+            ActiveSheet.Range("a" & CStr(l_index_f)) = curvename & "_front"
+            If dual_or_not Then
+                Sheets("rear").Select
+                ActiveSheet.Range("a" & CStr(l_index_r)) = curvename & "_rear"
+            End If
+            Sheets("front").Select
+            ActiveSheet.Range("b" & CStr(l_index_f)).Resize(1, UBound(msg_dfs_off_f) + 1).Value = msg_dfs_off_f
+            If dual_or_not Then
+                Sheets("rear").Select
+                ActiveSheet.Range("b" & CStr(l_index_r)).Resize(1, UBound(msg_dfs_off_r) + 1).Value = msg_dfs_off_r
+            End If
+
+            If dual_or_not Then
+                l_index_f = l_index_f + 1
+                l_index_r = l_index_r + 1
+            Else
+                l_index_f = l_index_f + 1
+            End If
+
         End If
 
         filename = Dir
@@ -163,16 +167,19 @@ Private Sub CommandButton1_Click()
     End With
 
     ActiveSheet.Range("b31").Resize(1, UBound(fre) + 1).Value = fre
+
     Sheets("front").Select
-    ActiveSheet.Range("a2", ActiveSheet.Range("a2").End(xlDown)).Select
-    Selection.Copy
-    Sheets("import").Select
-    ActiveSheet.Range("a31").Select
-    ActiveSheet.Paste
-    ActiveSheet.Range("a31") = "Front_Hz"
+    If l_index_f <> 3 Then
 
+        ActiveSheet.Range("a2", ActiveSheet.Range("a2").End(xlDown)).Select
+        Selection.Copy
+        Sheets("import").Select
+        ActiveSheet.Range("a31").Select
+        ActiveSheet.Paste
+        ActiveSheet.Range("a31") = "Front_Hz"
+        ActiveSheet.Range("b" & CStr(30 + l_index_f)).Resize(1, UBound(fre) + 1).Value = fre
+    End If
 
-    ActiveSheet.Range("b" & CStr(30 + l_index_f)).Resize(1, UBound(fre) + 1).Value = fre
 
     If l_index_r <> 3 Then
         Sheets("rear").Select
@@ -181,18 +188,22 @@ Private Sub CommandButton1_Click()
         Sheets("import").Select
         ActiveSheet.Range("a" & CStr(30 + l_index_f)).Select
         ActiveSheet.Paste
+        ActiveSheet.Range("a" & CStr(30 + l_index_f)) = "Rear_Hz"
     End If
-    ActiveSheet.Range("a" & CStr(30 + l_index_f)) = "Rear_Hz"
+
 
 
     'include the calibration
-    For ii = 3 To l_index_f - 1
-        For jj = 3 To UBound(msg_dfs_off_f) + 3
-            ActiveSheet.Cells(29 + ii, jj - 1) = Sheets("front").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj)
+     If l_index_f <> 3 Then
+        For ii = 3 To l_index_f - 1
+            For jj = 3 To UBound(msg_dfs_off_f) + 3
+                ActiveSheet.Cells(29 + ii, jj - 1) = Sheets("front").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj)
+            Next
+
+
         Next
+    End If
 
-
-    Next
     If l_index_r <> 3 Then
 
 '        Sheets("rear").Select
@@ -207,102 +218,101 @@ Private Sub CommandButton1_Click()
 
     Application.CutCopyMode = False
 
-    '------------- plot the output:msg curves ------------
-'    For ii = 1 To ActiveSheet.ChartObjects.Count
-'        ActiveSheet.ChartObjects.Item(1).Activate
-'        ActiveChart.Parent.Delete
-'    Next
-'
+        '------------- plot the output:msg curves ------------
+    '    For ii = 1 To ActiveSheet.ChartObjects.Count
+    '        ActiveSheet.ChartObjects.Item(1).Activate
+    '        ActiveChart.Parent.Delete
+    '    Next
+    '
+    If l_index_f <> 3 Then
+        Sheets("import").Select
+        ActiveSheet.Range("A31").Select
+        ActiveSheet.Range(Selection, Selection.End(xlDown)).Select
+        ActiveSheet.Range(Selection, Selection.End(xlToRight)).Select
+        ActiveSheet.Shapes.AddChart2(240, xlXYScatterSmoothNoMarkers).Select
+    '    ActiveChart.Parent.Cut
 
-    Sheets("import").Select
-    ActiveSheet.Range("A31").Select
-    ActiveSheet.Range(Selection, Selection.End(xlDown)).Select
-    ActiveSheet.Range(Selection, Selection.End(xlToRight)).Select
-    ActiveSheet.Shapes.AddChart2(240, xlXYScatterSmoothNoMarkers).Select
-'    ActiveChart.Parent.Cut
+        ActiveChart.ChartArea.Select
+        ActiveChart.Location Where:=xlLocationAsObject, Name:="output"
 
-    ActiveChart.ChartArea.Select
-    ActiveChart.Location Where:=xlLocationAsObject, Name:="output"
+    '    Sheets("output").Select
+    '    ActiveSheet.Paste
 
-'    Sheets("output").Select
-'    ActiveSheet.Paste
+        ActiveSheet.ChartObjects.Item(1).Activate
+        ActiveSheet.Shapes.Item(1).IncrementLeft -418.5
+        ActiveSheet.Shapes.Item(1).IncrementTop -5000
+        ActiveSheet.Shapes.Item(1).ScaleWidth 1.8666666667, msoFalse, _
+            msoScaleFromTopLeft
+        ActiveSheet.Shapes.Item(1).ScaleHeight 2.5833333333, msoFalse, _
+            msoScaleFromTopLeft
+        ActiveWindow.SmallScroll Down:=-3
+        ActiveSheet.ChartObjects.Item(1).Activate
+        ActiveChart.ChartTitle.Select
+        ActiveChart.ChartTitle.Text = "MSG_front"
+        Selection.Format.TextFrame2.TextRange.Characters.Text = "MSG_front"
+        With Selection.Format.TextFrame2.TextRange.Characters(1, 3).ParagraphFormat
+            .TextDirection = msoTextDirectionLeftToRight
+            .Alignment = msoAlignCenter
+        End With
+        With Selection.Format.TextFrame2.TextRange.Characters(1, 3).Font
+            .BaselineOffset = 0
+            .Bold = msoFalse
+            .NameComplexScript = "+mn-cs"
+            .NameFarEast = "+mn-ea"
+            .Fill.Visible = msoTrue
+            .Fill.ForeColor.RGB = RGB(89, 89, 89)
+            .Fill.Transparency = 0
+            .Fill.Solid
+            .Size = 14
+            .Italic = msoFalse
+            .Kerning = 12
+            .Name = "+mn-lt"
+            .UnderlineStyle = msoNoUnderline
+            .Spacing = 0
+            .Strike = msoNoStrike
+        End With
+        ActiveChart.Axes(xlValue).Select
+        ActiveChart.Axes(xlValue).MinimumScale = 0
+        ActiveChart.Axes(xlValue).MaximumScale = 150
+        Application.CommandBars("Format Object").Visible = False
 
-    ActiveSheet.ChartObjects.Item(1).Activate
-    ActiveSheet.Shapes.Item(1).IncrementLeft -418.5
-    ActiveSheet.Shapes.Item(1).IncrementTop -189.75
-    ActiveSheet.Shapes.Item(1).ScaleWidth 1.8666666667, msoFalse, _
-        msoScaleFromTopLeft
-    ActiveSheet.Shapes.Item(1).ScaleHeight 2.5833333333, msoFalse, _
-        msoScaleFromTopLeft
-    ActiveWindow.SmallScroll Down:=-3
-    ActiveSheet.ChartObjects.Item(1).Activate
-    ActiveChart.ChartTitle.Select
-    ActiveChart.ChartTitle.Text = "MSG_front"
-    Selection.Format.TextFrame2.TextRange.Characters.Text = "MSG_front"
-    With Selection.Format.TextFrame2.TextRange.Characters(1, 3).ParagraphFormat
-        .TextDirection = msoTextDirectionLeftToRight
-        .Alignment = msoAlignCenter
-    End With
-    With Selection.Format.TextFrame2.TextRange.Characters(1, 3).Font
-        .BaselineOffset = 0
-        .Bold = msoFalse
-        .NameComplexScript = "+mn-cs"
-        .NameFarEast = "+mn-ea"
-        .Fill.Visible = msoTrue
-        .Fill.ForeColor.RGB = RGB(89, 89, 89)
-        .Fill.Transparency = 0
-        .Fill.Solid
-        .Size = 14
-        .Italic = msoFalse
-        .Kerning = 12
-        .Name = "+mn-lt"
-        .UnderlineStyle = msoNoUnderline
-        .Spacing = 0
-        .Strike = msoNoStrike
-    End With
-    ActiveChart.Axes(xlValue).Select
-    ActiveChart.Axes(xlValue).MinimumScale = 0
-    ActiveChart.Axes(xlValue).MaximumScale = 150
-    Application.CommandBars("Format Object").Visible = False
+        ActiveSheet.ChartObjects.Item(1).Activate
+        ActiveChart.PlotArea.Select
+        'ActiveChart.FullSeriesCollection(18).Select
+        ActiveChart.SeriesCollection.NewSeries
+        ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$8"
+        If Sheets("import").Range("f16") = "Dooku" Then
+            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$K$8"
+            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$K$9"
+        Else
+            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$j$8"
+            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$j$9"
 
-    ActiveSheet.ChartObjects.Item(1).Activate
-    ActiveChart.PlotArea.Select
-    'ActiveChart.FullSeriesCollection(18).Select
-    ActiveChart.SeriesCollection.NewSeries
-    ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$8"
-    If Sheets("import").Range("f16") = "Dooku" Then
-        ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$K$8"
-        ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$K$9"
-    Else
-        ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$j$8"
-        ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$j$9"
+        End If
 
+
+        ActiveChart.FullSeriesCollection(l_index_f - 2).Select
+        With Selection.Format.line
+            .Visible = msoTrue
+            .ForeColor.RGB = RGB(255, 0, 0)
+            .Transparency = 0
+        End With
+        With Selection.Format.line
+            .Visible = msoTrue
+            .Weight = 2
+        End With
+        With Selection.Format.line
+            .Visible = msoTrue
+            .DashStyle = msoLineDash
+        End With
+
+        ActiveChart.Axes(xlCategory).Select
+        ActiveChart.Axes(xlCategory).HasMinorGridlines = True
+        ActiveChart.Axes(xlCategory).ScaleType = xlLogarithmic
+        ActiveChart.Axes(xlCategory).MinimumScale = 100
+        ActiveChart.Axes(xlCategory).MaximumScale = 10000
+        Application.CommandBars("Format Object").Visible = False
     End If
-
-
-    ActiveChart.FullSeriesCollection(l_index_f - 2).Select
-    With Selection.Format.line
-        .Visible = msoTrue
-        .ForeColor.RGB = RGB(255, 0, 0)
-        .Transparency = 0
-    End With
-    With Selection.Format.line
-        .Visible = msoTrue
-        .Weight = 2
-    End With
-    With Selection.Format.line
-        .Visible = msoTrue
-        .DashStyle = msoLineDash
-    End With
-
-    ActiveChart.Axes(xlCategory).Select
-    ActiveChart.Axes(xlCategory).HasMinorGridlines = True
-    ActiveChart.Axes(xlCategory).ScaleType = xlLogarithmic
-    ActiveChart.Axes(xlCategory).MinimumScale = 100
-    ActiveChart.Axes(xlCategory).MaximumScale = 10000
-    Application.CommandBars("Format Object").Visible = False
-
-
 
 '    if there is rear curve, plot it
     If l_index_r <> 3 Then
@@ -324,7 +334,7 @@ Private Sub CommandButton1_Click()
         ActiveSheet.ChartObjects.Item(2).Activate
 
         ActiveSheet.Shapes.Item(2).IncrementLeft 254.25
-        ActiveSheet.Shapes.Item(2).IncrementTop -195.75
+        ActiveSheet.Shapes.Item(2).IncrementTop -5000
         ActiveSheet.Shapes.Item(2).ScaleWidth 1.8666666667, msoFalse, _
             msoScaleFromTopLeft
         ActiveSheet.Shapes.Item(2).ScaleHeight 2.5833333333, msoFalse, _
