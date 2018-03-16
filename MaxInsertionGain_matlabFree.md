@@ -12,7 +12,7 @@ Private Sub CommandButton1_Click()
     Dim l_index_f As Integer
     Dim l_index_r As Integer
     Dim dual_or_not As Boolean
-    
+
     Sheets("calibration").Visible = True
     Sheets("front").Visible = True
     Sheets("rear").Visible = True
@@ -122,10 +122,10 @@ Private Sub CommandButton1_Click()
             curvename = Mid(filename, 1, l - 1)
 
             Sheets("front").Select
-            ActiveSheet.Range("a" & CStr(l_index_f)) = curvename & "_front"
+            ActiveSheet.Range("a" & CStr(l_index_f)) = "Front_" & curvename
             If dual_or_not Then
                 Sheets("rear").Select
-                ActiveSheet.Range("a" & CStr(l_index_r)) = curvename & "_rear"
+                ActiveSheet.Range("a" & CStr(l_index_r)) = "Rear_" & curvename
             End If
             Sheets("front").Select
             ActiveSheet.Range("b" & CStr(l_index_f)).Resize(1, UBound(msg_dfs_off_f) + 1).Value = msg_dfs_off_f
@@ -248,8 +248,8 @@ Private Sub CommandButton1_Click()
         ActiveWindow.SmallScroll Down:=-3
         ActiveSheet.ChartObjects.Item(1).Activate
         ActiveChart.ChartTitle.Select
-        ActiveChart.ChartTitle.Text = "MSG_front"
-        Selection.Format.TextFrame2.TextRange.Characters.Text = "MSG_front"
+        ActiveChart.ChartTitle.Text = "MSIG_front"
+        Selection.Format.TextFrame2.TextRange.Characters.Text = "MSIG_front"
         With Selection.Format.TextFrame2.TextRange.Characters(1, 3).ParagraphFormat
             .TextDirection = msoTextDirectionLeftToRight
             .Alignment = msoAlignCenter
@@ -342,8 +342,8 @@ Private Sub CommandButton1_Click()
         ActiveWindow.SmallScroll Down:=-3
         ActiveSheet.ChartObjects.Item(2).Activate
         ActiveChart.ChartTitle.Select
-        ActiveChart.ChartTitle.Text = "MSG_rear"
-        Selection.Format.TextFrame2.TextRange.Characters.Text = "MSG_rear"
+        ActiveChart.ChartTitle.Text = "MSIG_rear"
+        Selection.Format.TextFrame2.TextRange.Characters.Text = "MSIG_rear"
         With Selection.Format.TextFrame2.TextRange.Characters(1, 3).ParagraphFormat
             .TextDirection = msoTextDirectionLeftToRight
             .Alignment = msoAlignCenter
@@ -410,12 +410,12 @@ Private Sub CommandButton1_Click()
     End If
 
 
-    Sheets("calibration").Select
-    ActiveWindow.SelectedSheets.Visible = False
-    Sheets("front").Select
-    ActiveWindow.SelectedSheets.Visible = False
-    Sheets("rear").Select
-    ActiveWindow.SelectedSheets.Visible = False
+'    Sheets("calibration").Select
+'    ActiveWindow.SelectedSheets.Visible = False
+'    Sheets("front").Select
+'    ActiveWindow.SelectedSheets.Visible = False
+'    Sheets("rear").Select
+'    ActiveWindow.SelectedSheets.Visible = False
 
     Sheets("output").Select
 

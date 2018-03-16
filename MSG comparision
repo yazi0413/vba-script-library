@@ -1,0 +1,371 @@
+Private Sub CommandButton1_Click()
+
+'
+    ' import OPL data
+    '
+
+    Dim path
+    Dim filename
+    Dim freq()
+    Dim d()
+    Dim files As Integer, row_no As Integer, row_no_gain As Integer, column_end As Integer, msig As Integer
+    Dim ii As Integer, jj As Integer, kk As Integer, l_index As Integer, tt As Integer
+    Dim searchTag As String, data_folder As String, devices() As String
+
+    files = 1
+    row_no = 0
+    row_no_gain = 0
+    msig = 0
+    column_end = 0
+
+    l_index = 25
+
+
+    Sheets("MSG_OPL").Select
+    Rows("25:25").Select
+    ActiveWindow.SmallScroll Down:=138
+    Rows("25:200").Select
+    Selection.Delete Shift:=xlUp
+    MsgBox "place OPL txt into (OPL) folder, gainsetting=0 into (gain0) folder; FOG50 into (FOG50) folder" & vbCrLf & "make sure same name between OPL and log files"
+
+'    OPL data
+    data_folder = Sheets("MSG_OPL").Range("a2")
+    path = data_folder & "\OPL\"
+    filename = Dir(path & ".\*.txt")
+    Do While filename <> ""
+
+        l = InStr(filename, ".txt")
+        curvename = Mid(filename, 1, l - 1)
+
+        Set fso = CreateObject("scripting.filesystemobject")
+        Set f = fso.opentextfile(path & filename, 1)
+
+        a = f.readall
+    '    split by enter
+        Data = Split(a, vbCrLf)
+        ReDim freq(0 To UBound(Data) - 1)
+        ReDim d(0 To UBound(Data) - 1)
+
+
+        For ii = 0 To UBound(Data) - 1
+            temp = Split(Data(ii), vbTab)
+            freq(ii) = Trim(temp(0))
+            d(ii) = Trim(temp(1))
+        Next
+
+        Sheets("MSG_OPL").Select
+        If files = 1 Then
+            ActiveSheet.Range("a" & CStr(l_index)) = "Hz"
+            ActiveSheet.Range("b" & CStr(l_index)).Resize(1, UBound(d) + 1).Value = freq
+        End If
+
+        ActiveSheet.Range("a" & CStr(files + l_index)) = curvename
+        ActiveSheet.Range("b" & CStr(files + l_index)).Resize(1, UBound(d) + 1).Value = d
+
+        filename = Dir
+        files = files + 1
+    Loop
+
+    path = data_folder & "\FOG50\"
+    filename = Dir(path & ".\*.txt")
+    Do While filename <> ""
+
+        l = InStr(filename, ".txt")
+        curvename = Mid(filename, 1, l - 1)
+
+        Set fso = CreateObject("scripting.filesystemobject")
+        Set f = fso.opentextfile(path & filename, 1)
+
+        a = f.readall
+    '    split by enter
+        Data = Split(a, vbCrLf)
+        ReDim freq(0 To UBound(Data) - 1)
+        ReDim d(0 To UBound(Data) - 1)
+
+
+        For ii = 0 To UBound(Data) - 1
+            temp = Split(Data(ii), vbTab)
+            freq(ii) = Trim(temp(0))
+            d(ii) = Trim(temp(1))
+        Next
+
+        Sheets("MSG_OPL").Select
+        If files = 1 Then
+            ActiveSheet.Range("a" & CStr(l_index)) = "Hz"
+            ActiveSheet.Range("b" & CStr(l_index)).Resize(1, UBound(d) + 1).Value = freq
+        End If
+
+        ActiveSheet.Range("a" & CStr(files + l_index)) = curvename
+        ActiveSheet.Range("b" & CStr(files + l_index)).Resize(1, UBound(d) + 1).Value = d
+
+        filename = Dir
+        files = files + 1
+    Loop
+
+    path = data_folder & "\gain0\"
+    filename = Dir(path & ".\*.txt")
+    Do While filename <> ""
+
+        l = InStr(filename, ".txt")
+        curvename = Mid(filename, 1, l - 1)
+
+        Set fso = CreateObject("scripting.filesystemobject")
+        Set f = fso.opentextfile(path & filename, 1)
+
+        a = f.readall
+    '    split by enter
+        Data = Split(a, vbCrLf)
+        ReDim freq(0 To UBound(Data) - 1)
+        ReDim d(0 To UBound(Data) - 1)
+
+
+        For ii = 0 To UBound(Data) - 1
+            temp = Split(Data(ii), vbTab)
+            freq(ii) = Trim(temp(0))
+            d(ii) = Trim(temp(1))
+        Next
+
+        Sheets("MSG_OPL").Select
+        If files = 1 Then
+            ActiveSheet.Range("a" & CStr(l_index)) = "Hz"
+            ActiveSheet.Range("b" & CStr(l_index)).Resize(1, UBound(d) + 1).Value = freq
+        End If
+
+        ActiveSheet.Range("a" & CStr(files + l_index)) = curvename
+        ActiveSheet.Range("b" & CStr(files + l_index)).Resize(1, UBound(d) + 1).Value = d
+
+        filename = Dir
+        files = files + 1
+    Loop
+
+    ActiveSheet.Range("a" & CStr(l_index), ActiveSheet.Range("a" & CStr(l_index)).End(xlToRight)).Select
+    column_end = Selection.Count
+
+    l_index = l_index + files
+
+'    make the MSG data from OPL and MSG from MSIG
+
+    If files <> 1 Then
+        Call interpolate_r40(files)
+
+        Sheets("MSG_OPL").Select
+
+'        device number stored in devices()
+        ii = 3
+        Do While ActiveSheet.Range("b" & CStr(ii)) <> ""
+            ii = ii + 1
+        Loop
+        ReDim devices(0 To ii - 4)
+        For jj = 0 To ii - 4
+            devices(jj) = ActiveSheet.Range("b" & CStr(jj + 3))
+        Next
+
+'        check the data is enough
+        If (files - 1) <> (UBound(devices) + 1) * 10 Then
+            MsgBox "need enough OPL&FOG50&gain0 data"
+            End
+        End If
+
+'        count the number of MSIG curves
+        If ActiveSheet.Range("a" & CStr(files + 26)) <> "" Then
+            ActiveSheet.Range("a" & CStr(files + 26), ActiveSheet.Range("a" & CStr(files + 26)).End(xlDown)).Select
+            msig = Selection.Count
+        End If
+
+        l_index = l_index + msig
+
+        '    MSG from OPL
+        For kk = 0 To UBound(devices)
+            For ii = 11 To 16
+
+                searchTag = ActiveSheet.Range("c" & CStr(ii)) & devices(kk)
+                ActiveSheet.Range("a26", ActiveSheet.Range("a26").End(xlDown)).Select
+                Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
+                    LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                    MatchCase:=False, SearchFormat:=False).Activate
+                row_no = ActiveCell.Row
+
+                If InStr(ActiveSheet.Range("c" & CStr(ii)), "Front") Then
+                    searchTag = ActiveSheet.Range("c17") & devices(kk)
+                Else
+                    searchTag = ActiveSheet.Range("c18") & devices(kk)
+                End If
+                ActiveSheet.Range("a26", ActiveSheet.Range("a26").End(xlDown)).Select
+                Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
+                    LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                    MatchCase:=False, SearchFormat:=False).Activate
+                row_no_gain = ActiveCell.Row
+
+                ActiveSheet.Range("a" & CStr(l_index - 8 + ii + 6 * kk)) = ActiveSheet.Range("c" & CStr(ii)) & devices(kk) & "_MSG_opl"
+
+                For jj = 2 To column_end
+                    ActiveSheet.Cells(l_index - 8 + ii + 6 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj) _
+                    - ActiveSheet.Cells(row_no, jj)
+                Next
+            Next
+        Next
+
+
+        l_index = l_index + 2 + 6 * kk
+
+'        MSG from MSIG
+        If msig < (UBound(devices) + 1) * 6 Then
+            MsgBox "not enough DFS log files or you can copy the MSIG, deal with it manually"
+            End
+        End If
+
+        For kk = 0 To UBound(devices)
+            For ii = 11 To 16
+
+                searchTag = ActiveSheet.Range("c" & CStr(ii)) & devices(kk)
+                ActiveSheet.Range("a" & CStr(26 + files), ActiveSheet.Range("a" & CStr(26 + files)).End(xlDown)).Select
+                Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
+                    LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                    MatchCase:=False, SearchFormat:=False).Activate
+                row_no = ActiveCell.Row
+
+                If InStr(ActiveSheet.Range("c" & CStr(ii)), "Front") Then
+                    searchTag = ActiveSheet.Range("c19") & devices(kk)
+                Else
+                    searchTag = ActiveSheet.Range("c20") & devices(kk)
+                End If
+                ActiveSheet.Range("a26", ActiveSheet.Range("a26").End(xlDown)).Select
+                Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
+                    LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                    MatchCase:=False, SearchFormat:=False).Activate
+                row_no_gain = ActiveCell.Row
+
+                ActiveSheet.Range("a" & CStr(l_index - 10 + ii + 6 * kk)) = ActiveSheet.Range("c" & CStr(ii)) & devices(kk) & "_MSG_alt"
+
+                For jj = 2 To column_end
+                    ActiveSheet.Cells(l_index - 10 + ii + 6 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj) _
+                    + ActiveSheet.Cells(row_no, jj)
+                Next
+            Next
+        Next
+
+        l_index = l_index + 6 * kk
+
+        ActiveSheet.Range("A" & CStr(l_index)).Select
+        Range(Selection, Selection.End(xlUp)).Select
+        Range(Selection, Selection.End(xlToRight)).Select
+        ActiveSheet.Shapes.AddChart2(240, xlXYScatterSmoothNoMarkers).Select
+        ActiveChart.SetSourceData Source:=Range("MSG_OPL!$A$44:$CD$56")
+
+        searchTag = ActiveSheet.ChartObjects(1).Name
+
+        ActiveSheet.ChartObjects(searchTag).Activate
+        ActiveChart.ChartTitle.Select
+        ActiveChart.ChartTitle.Text = "MSG comparision"
+        Selection.Format.TextFrame2.TextRange.Characters.Text = "MSG comparision"
+
+        ActiveSheet.Shapes(searchTag).IncrementLeft -240.75
+        ActiveSheet.Shapes(searchTag).IncrementTop 45.75
+        ActiveSheet.ChartObjects(searchTag).Activate
+        ActiveSheet.Shapes(searchTag).ScaleWidth 2.0166666667, msoFalse, _
+            msoScaleFromTopLeft
+        ActiveSheet.Shapes(searchTag).ScaleHeight 1.8715277778, msoFalse, _
+            msoScaleFromTopLeft
+
+        ActiveChart.Axes(xlCategory).Select
+        ActiveChart.Axes(xlCategory).ScaleType = xlLogarithmic
+        ActiveChart.Axes(xlCategory).MinimumScale = 100
+        ActiveChart.Axes(xlCategory).MaximumScale = 10000
+        ActiveChart.Axes(xlValue).Select
+        ActiveChart.Axes(xlValue).MinimumScale = 0
+        ActiveChart.Axes(xlValue).MaximumScale = 160
+        ActiveChart.Axes(xlCategory).Select
+        ActiveChart.Axes(xlCategory).HasMinorGridlines = True
+
+        ActiveWindow.SmallScroll Down:=15
+
+
+    End If
+
+End Sub
+
+Public Sub interpolate_r40(files As Integer)
+
+
+    Dim x As Double, y As Double, a As Integer, maxbase As Integer, i As Integer, valgt As Variant, targetfrekarray(1 To 1000) As Double, frekvensarray(1 To 1000) As Double, talarray(1 To 1000) As Double, cellearray(1 To 5) As Boolean, trange As Range
+    Dim curve As String
+    Dim total As Integer, ff As Integer, rr As Integer, ii As Integer
+
+    ' count how many curves to be interped
+    ff = 0
+    rr = 0
+    Sheets("import").Select
+    ActiveSheet.Range("a31", ActiveSheet.Range("a31").End(xlDown)).Select
+    ff = Selection.Count - 1
+    If ActiveSheet.Range("a" & CStr(33 + ff)) <> "" Then
+        ActiveSheet.Range("a" & CStr(33 + ff), ActiveSheet.Range("a" & CStr(33 + ff)).End(xlDown)).Select
+        rr = Selection.Count - 1
+    End If
+    total = ff + rr
+
+
+    For ii = 1 To total
+
+        Sheets("import").Select
+        ActiveSheet.Range("b31", ActiveSheet.Range("b31").End(xlToRight)).Select
+        For Each valgt In Selection
+          i = i + 1
+            frekvensarray(i) = valgt
+            maxbase = i
+        Next
+
+
+        i = 0
+        If ii <= ff Then
+            curve = ActiveSheet.Range("a" & CStr(31 + ii))
+            ActiveSheet.Range("b" & CStr(31 + ii), ActiveSheet.Range("b" & CStr(31 + ii)).End(xlToRight)).Select
+        Else
+            curve = ActiveSheet.Range("a" & CStr(33 + ii))
+            ActiveSheet.Range("b" & CStr(33 + ii), ActiveSheet.Range("b" & CStr(33 + ii)).End(xlToRight)).Select
+        End If
+        For Each valgt In Selection
+          i = i + 1
+            talarray(i) = valgt
+        Next
+
+
+        i = 0
+        Sheets("MSG_OPL").Select
+        ActiveSheet.Range("b25", ActiveSheet.Range("b25").End(xlToRight)).Select
+        For Each valgt In Selection
+          i = i + 1
+            targetfrekarray(i) = valgt
+        Next
+
+        a = 0
+        ActiveSheet.Range("a" & CStr(files + 25 + ii)) = curve & "_msig_R40"
+        ActiveSheet.Range("a1").Select
+        ActiveCell.Offset(files + ii, 0).Range("b25", ActiveSheet.Range("b25").End(xlToRight)).Select
+        For Each valgt In Selection
+          a = a + 1
+          i = 1
+            While targetfrekarray(a) > frekvensarray(i) And Not i = maxbase
+              i = i + 1
+            Wend
+          If i <> 1 Then
+            i = i - 1
+          End If
+          valgt.Value = talarray(i) + (talarray(i + 1) - talarray(i)) * (targetfrekarray(a) - frekvensarray(i)) / (frekvensarray(i + 1) - frekvensarray(i))
+        Next
+
+    Next
+
+    ActiveSheet.Range("a1").Select
+    ActiveCell.Offset(files + ii + 1, 0).Range("a25") = "Hz"
+    ActiveSheet.Range("a1").Select
+    ActiveCell.Offset(files + ii + 1, 0).Range("b25", ActiveSheet.Range("b25").End(xlToRight)).Select
+
+    i = 0
+    For Each valgt In Selection
+        i = i + 1
+        valgt.Value = targetfrekarray(i)
+    Next
+
+
+
+End Sub
