@@ -6,20 +6,24 @@ Private Sub CommandButton1_Click()
 
     Dim path
     Dim filename
-    Dim line_f As Integer
-    Dim line_r As Integer
+    Dim line_f As Integer, margin As Integer, row_no As Integer
+    Dim line_r As Integer, ii As Integer, jj As Integer, kk As Integer
     Dim fre(127) As Double
     Dim l_index_f As Integer
     Dim l_index_r As Integer
-    Dim dual_or_not As Boolean
+    Dim dual_or_not As Boolean, devices() As String
 
     Sheets("calibration").Visible = True
     Sheets("front").Visible = True
     Sheets("rear").Visible = True
-
+    
+    margin = 10
+    row_no = 0
 
     'interpolate the calibration value
     Call interpolate
+    Call interpolate_IG(Sheets("import").Range("f16"))
+
 
 
     'path = "C:\Users\chache\Documents\logfile\"
@@ -194,7 +198,7 @@ Private Sub CommandButton1_Click()
 
 
     'include the calibration
-     If l_index_f <> 3 Then
+    If l_index_f <> 3 Then
         For ii = 3 To l_index_f - 1
             For jj = 3 To UBound(msg_dfs_off_f) + 3
                 ActiveSheet.Cells(29 + ii, jj - 1) = Sheets("front").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj)
@@ -211,12 +215,136 @@ Private Sub CommandButton1_Click()
             For jj = 3 To UBound(msg_dfs_off_f) + 3
                 ActiveSheet.Cells(28 + l_index_f + ii, jj - 1) = Sheets("rear").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj)
             Next
-
-
         Next
+
     End If
 
     Application.CutCopyMode = False
+
+
+    'get the Margin = FOIG - MSIG
+
+'   device number stored in devices()
+    ii = 11
+    Do While Sheets("cover").Cells(ii, 4) <> ""
+        ii = ii + 1
+    Loop
+    ReDim devices(0 To ii - 12)
+    For jj = 0 To ii - 12
+        devices(jj) = Sheets("cover").Cells(jj + 11, 4)
+    Next
+
+
+    If l_index_f <> 3 Or l_index_r <> 3 Then
+
+        ActiveSheet.Cells(30 + l_index_f + l_index_r, 1) = "Hz"
+        For jj = 2 To UBound(msg_dfs_off_f) + 2
+            ActiveSheet.Cells(30 + l_index_f + l_index_r, jj) = ActiveSheet.Cells(30 + l_index_f, jj)
+        Next
+
+        ActiveSheet.Cells(31 + l_index_f + l_index_r, 1) = Sheets("calibration").Cells(12, 2) & "_plusMargin"
+        ActiveSheet.Cells(32 + l_index_f + l_index_r, 1) = "MarginLimit"
+        For jj = 2 To UBound(msg_dfs_off_f) + 2
+            ActiveSheet.Cells(31 + l_index_f + l_index_r, jj) = Sheets("calibration").Cells(12, jj + 1) + 10
+            ActiveSheet.Cells(32 + l_index_f + l_index_r, jj) = ActiveSheet.Range("f2")
+        Next
+
+        ActiveSheet.Range("A" & CStr(34 + l_index_f + l_index_r)) = "Get the margin"
+        ActiveSheet.Range("A" & CStr(34 + l_index_f + l_index_r)).Select
+        Selection.Font.Bold = True
+        With Selection.Interior
+            .Pattern = xlSolid
+            .PatternColorIndex = xlAutomatic
+            .Color = 65535
+            .TintAndShade = 0
+            .PatternTintAndShade = 0
+        End With
+
+        ActiveSheet.Cells(35 + l_index_f + l_index_r, 1) = "Hz"
+        For jj = 2 To UBound(msg_dfs_off_f) + 2
+            ActiveSheet.Cells(35 + l_index_f + l_index_r, jj) = ActiveSheet.Cells(31, jj)
+        Next
+        ActiveSheet.Cells(35 + l_index_f + l_index_r, jj + 1) = "Max"
+
+    End If
+
+    If l_index_f <> 3 Then
+
+        For ii = 3 To l_index_f - 1
+            ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, 1) = ActiveSheet.Cells(29 + ii, 1) & "_Margin"
+
+            For jj = 2 To UBound(msg_dfs_off_f) + 2
+                ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, jj) = ActiveSheet.Cells(31 + l_index_r + l_index_r, jj) - ActiveSheet.Cells(29 + ii, jj)
+            Next
+            ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, jj + 1).FormulaR1C1 = "=MAX(RC[-" & CStr(jj - 1) & "]:RC[-2])"
+        Next
+
+        For kk = 0 To UBound(devices)
+
+            ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35), ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35)).End(xlDown)).Select
+            Selection.Find(What:="front*" & devices(kk), After:=ActiveCell, LookIn:=xlFormulas, _
+                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                MatchCase:=False, SearchFormat:=False).Activate
+            row_no = ActiveCell.Row
+
+            ' count how many curves in one device name
+            ii = 0
+            Do While InStr(ActiveSheet.Range("a" & CStr(row_no + ii)), devices(kk))
+                ii = ii + 1
+            Loop
+
+            If ii <> 0 Then
+                Sheets("import").Cells(row_no, jj + 2).Select
+                ActiveCell.FormulaR1C1 = "=MAX(RC[-1]:R[" & CStr(ii - 1) & "]C[-1])"
+                Sheets("cover").Cells(11 + kk, 5) = ActiveCell
+            Else
+                MsgBox devices(kk) & " data no found"
+                End
+            End If
+
+        Next
+
+    End If
+
+    If l_index_r <> 3 Then
+
+        For ii = 3 To l_index_r - 1
+            ActiveSheet.Cells(30 + 2 * l_index_f + l_index_r + ii, 1) = ActiveSheet.Cells(28 + l_index_f + ii, 1) & "_Margin"
+
+            For jj = 2 To UBound(msg_dfs_off_f) + 2
+                ActiveSheet.Cells(30 + 2 * l_index_f + l_index_r + ii, jj) = ActiveSheet.Cells(31 + l_index_r + l_index_r, jj) - ActiveSheet.Cells(28 + l_index_f + ii, jj)
+            Next
+            ActiveSheet.Cells(30 + 2 * l_index_f + l_index_r + ii, jj + 1).FormulaR1C1 = "=MAX(RC[-" & CStr(jj - 1) & "]:RC[-2])"
+        Next
+
+
+        For kk = 0 To UBound(devices)
+
+            ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35), ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35)).End(xlDown)).Select
+            Selection.Find(What:="rear*" & devices(kk), After:=ActiveCell, LookIn:=xlFormulas, _
+                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                MatchCase:=False, SearchFormat:=False).Activate
+            row_no = ActiveCell.Row
+
+            ' count how many curves in one device name
+            ii = 0
+            Do While InStr(ActiveSheet.Range("a" & CStr(row_no + ii)), devices(kk))
+                ii = ii + 1
+            Loop
+
+            If ii <> 0 Then
+                Sheets("import").Cells(row_no, jj + 2).Select
+                ActiveCell.FormulaR1C1 = "=MAX(RC[-1]:R[" & CStr(ii - 1) & "]C[-1])"
+                Sheets("cover").Cells(11 + kk, 6) = ActiveCell
+            Else
+                MsgBox devices(kk) & " data no found"
+                End
+            End If
+        Next
+
+
+    End If
+
 
         '------------- plot the output:msg curves ------------
     '    For ii = 1 To ActiveSheet.ChartObjects.Count
@@ -280,15 +408,17 @@ Private Sub CommandButton1_Click()
         ActiveChart.PlotArea.Select
         'ActiveChart.FullSeriesCollection(18).Select
         ActiveChart.SeriesCollection.NewSeries
-        ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$8"
-        If Sheets("import").Range("f16") = "Dooku" Then
-            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$K$8"
-            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$K$9"
-        Else
-            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$j$8"
-            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$j$9"
-
-        End If
+        ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$" & CStr(31 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$" & CStr(30 + l_index_f + l_index_r) & ":$DY$" & CStr(30 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$" & CStr(31 + l_index_f + l_index_r) & ":$DY$" & CStr(31 + l_index_f + l_index_r)
+'        If Sheets("import").Range("f16") = "Dooku" Then
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$K$8"
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$K$9"
+'        Else
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$j$8"
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$j$9"
+'
+'        End If
 
 
         ActiveChart.FullSeriesCollection(l_index_f - 2).Select
@@ -374,15 +504,9 @@ Private Sub CommandButton1_Click()
         ActiveChart.PlotArea.Select
         'ActiveChart.FullSeriesCollection(18).Select
         ActiveChart.SeriesCollection.NewSeries
-        ActiveChart.FullSeriesCollection.Item(l_index_r - 2).Name = "=import!$A$8"
-        If Sheets("import").Range("f16") = "Dooku" Then
-            ActiveChart.FullSeriesCollection(l_index_r - 2).XValues = "=import!$B$8:$K$8"
-            ActiveChart.FullSeriesCollection(l_index_r - 2).Values = "=import!$B$9:$K$9"
-        Else
-            ActiveChart.FullSeriesCollection(l_index_r - 2).XValues = "=import!$B$8:$j$8"
-            ActiveChart.FullSeriesCollection(l_index_r - 2).Values = "=import!$B$9:$j$9"
-
-        End If
+        ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$" & CStr(31 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$" & CStr(30 + l_index_f + l_index_r) & ":$DY$" & CStr(30 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$" & CStr(31 + l_index_f + l_index_r) & ":$DY$" & CStr(31 + l_index_f + l_index_r)
 
 
         ActiveChart.FullSeriesCollection(l_index_r - 2).Select
@@ -409,6 +533,105 @@ Private Sub CommandButton1_Click()
 
     End If
 
+    If l_index_f <> 3 Or l_index_r <> 3 Then
+
+        Sheets("import").Select
+        ActiveSheet.Range("A" & CStr(l_index_f + l_index_r + 35)).Select
+        ActiveSheet.Range(Selection, Selection.End(xlDown)).Select
+        ActiveSheet.Range(Selection, Selection.End(xlToRight)).Select
+        ActiveSheet.Shapes.AddChart2(240, xlXYScatterSmoothNoMarkers).Select
+    '    ActiveChart.Parent.Cut
+
+        ActiveChart.ChartArea.Select
+        ActiveChart.Location Where:=xlLocationAsObject, Name:="output"
+
+    '    Sheets("output").Select
+    '    ActiveSheet.Paste
+
+        ActiveSheet.ChartObjects.Item(3).Activate
+
+
+        ActiveWindow.SmallScroll Down:=24
+        ActiveChart.ChartArea.Select
+        ActiveSheet.Shapes.Item(3).IncrementLeft -418.5
+        ActiveSheet.Shapes.Item(3).IncrementTop -5000
+        ActiveSheet.Shapes.Item(3).IncrementTop 600
+        ActiveWindow.SmallScroll Down:=12
+        ActiveSheet.Shapes.Item(3).ScaleWidth 2.0020833333, msoFalse, _
+            msoScaleFromTopLeft
+        ActiveSheet.Shapes.Item(3).ScaleHeight 2.3854166667, msoFalse, _
+            msoScaleFromTopLeft
+
+        ActiveChart.ChartTitle.Select
+        ActiveChart.ChartTitle.Text = "Margin"
+        Selection.Format.TextFrame2.TextRange.Characters.Text = "Margin"
+        With Selection.Format.TextFrame2.TextRange.Characters(1, 3).ParagraphFormat
+            .TextDirection = msoTextDirectionLeftToRight
+            .Alignment = msoAlignCenter
+        End With
+        With Selection.Format.TextFrame2.TextRange.Characters(1, 3).Font
+            .BaselineOffset = 0
+            .Bold = msoFalse
+            .NameComplexScript = "+mn-cs"
+            .NameFarEast = "+mn-ea"
+            .Fill.Visible = msoTrue
+            .Fill.ForeColor.RGB = RGB(89, 89, 89)
+            .Fill.Transparency = 0
+            .Fill.Solid
+            .Size = 14
+            .Italic = msoFalse
+            .Kerning = 12
+            .Name = "+mn-lt"
+            .UnderlineStyle = msoNoUnderline
+            .Spacing = 0
+            .Strike = msoNoStrike
+        End With
+        ActiveChart.Axes(xlValue).Select
+        ActiveChart.Axes(xlValue).MinimumScale = -50
+        ActiveChart.Axes(xlValue).MaximumScale = 0
+        Application.CommandBars("Format Object").Visible = False
+
+        ActiveSheet.ChartObjects.Item(3).Activate
+        ActiveChart.PlotArea.Select
+        'ActiveChart.FullSeriesCollection(18).Select
+        ActiveChart.SeriesCollection.NewSeries
+        ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$" & CStr(32 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$" & CStr(30 + l_index_f + l_index_r) & ":$DY$" & CStr(30 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$" & CStr(32 + l_index_f + l_index_r) & ":$DY$" & CStr(32 + l_index_f + l_index_r)
+'        If Sheets("import").Range("f16") = "Dooku" Then
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$K$8"
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$K$9"
+'        Else
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$j$8"
+'            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$j$9"
+'
+'        End If
+
+
+        ActiveChart.FullSeriesCollection(l_index_f - 2).Select
+        With Selection.Format.line
+            .Visible = msoTrue
+            .ForeColor.RGB = RGB(255, 0, 0)
+            .Transparency = 0
+        End With
+        With Selection.Format.line
+            .Visible = msoTrue
+            .Weight = 2
+        End With
+        With Selection.Format.line
+            .Visible = msoTrue
+            .DashStyle = msoLineDash
+        End With
+
+        ActiveChart.Axes(xlCategory).Select
+        ActiveChart.Axes(xlCategory).HasMinorGridlines = True
+        ActiveChart.Axes(xlCategory).ScaleType = xlLogarithmic
+        ActiveChart.Axes(xlCategory).MinimumScale = 100
+        ActiveChart.Axes(xlCategory).MaximumScale = 10000
+        Application.CommandBars("Format Object").Visible = False
+    End If
+
+
 
 '    Sheets("calibration").Select
 '    ActiveWindow.SelectedSheets.Visible = False
@@ -417,7 +640,7 @@ Private Sub CommandButton1_Click()
 '    Sheets("rear").Select
 '    ActiveWindow.SelectedSheets.Visible = False
 
-    Sheets("output").Select
+'    Sheets("output").Select
 
 
 End Sub
@@ -472,6 +695,83 @@ Public Sub interpolate()
     'Selection.Copy
     'Range("c5").Select
     'Windows("personal.xls").Visible = False
+
+
+End Sub
+
+Public Sub interpolate_IG(firmware As String)
+
+
+    Dim x As Double, y As Double, a As Integer, maxbase As Integer, i As Integer, valgt As Variant, targetfrekarray(1 To 1000) As Double, frekvensarray(1 To 1000) As Double, talarray(1 To 1000) As Double, cellearray(1 To 5) As Boolean, trange As Range
+
+
+    Sheets("import").Select
+
+    If firmware = "Dooku" Then
+        ActiveSheet.Range("b8", ActiveSheet.Range("b8").End(xlToRight)).Select
+    Else
+        ActiveSheet.Range("b8:j8").Select
+    End If
+
+    For Each valgt In Selection
+      i = i + 1
+        frekvensarray(i) = valgt
+        maxbase = i
+    Next
+
+
+    i = 0
+    If firmware = "Dooku" Then
+        ActiveSheet.Range("b9", ActiveSheet.Range("b9").End(xlToRight)).Select
+    Else
+        ActiveSheet.Range("b9:j9").Select
+    End If
+
+    For Each valgt In Selection
+      i = i + 1
+        talarray(i) = valgt
+    Next
+
+
+    i = 0
+    Sheets("calibration").Select
+    ActiveSheet.Range("c10", ActiveSheet.Range("c10").End(xlToRight)).Select
+    For Each valgt In Selection
+      i = i + 1
+        targetfrekarray(i) = valgt
+    Next
+
+    a = 0
+    ActiveSheet.Range("a1").Select
+    ActiveCell.Offset(2, 0).Range("c10", ActiveSheet.Range("c10").End(xlToRight)).Select
+    For Each valgt In Selection
+      a = a + 1
+      i = 1
+        While targetfrekarray(a) > frekvensarray(i) And Not i = maxbase
+          i = i + 1
+        Wend
+      If i <> 1 Then
+        i = i - 1
+      End If
+      valgt.Value = talarray(i) + (talarray(i + 1) - talarray(i)) * (targetfrekarray(a) - frekvensarray(i)) / (frekvensarray(i + 1) - frekvensarray(i))
+    Next
+
+
+    'Selection.Copy
+    'Range("c5").Select
+    'Windows("personal.xls").Visible = False
+
+
+End Sub
+
+
+Private Sub CommandButton2_Click()
+
+
+    Sheets("import").Select
+    Sheets("MSG_OPL").Visible = True
+    Sheets("MSG_OPL").Select
+    Sheets("matlab vs this script").Visible = True
 
 
 End Sub
