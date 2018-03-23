@@ -6,19 +6,21 @@ Private Sub CommandButton1_Click()
 
     Dim path
     Dim filename
-    Dim line_f As Integer, margin As Integer, row_no As Integer
-    Dim line_r As Integer, ii As Integer, jj As Integer, kk As Integer
+    Dim line_f As Integer, row_no As Integer, bound As Integer
+    Dim line_r As Integer, ii As Integer, jj As Integer, kk As Integer, dd As Integer
     Dim fre(127) As Double
     Dim l_index_f As Integer
-    Dim l_index_r As Integer
-    Dim dual_or_not As Boolean, devices() As String
+    Dim l_index_r As Integer, devices_index() As Integer, prod_offset() As Double, temp_offset As Double
+    Dim dual_or_not As Boolean, devices_f() As String, devices_r() As String, devices_f_index() As Integer, devices_r_index() As Integer
 
     Sheets("calibration").Visible = True
     Sheets("front").Visible = True
     Sheets("rear").Visible = True
-    
-    margin = 10
+
+    bound = 0
     row_no = 0
+    temp_offset = 0
+
 
     'interpolate the calibration value
     Call interpolate
@@ -151,9 +153,74 @@ Private Sub CommandButton1_Click()
     Loop
 
 
+    'get the Margin = FOIG - MSIG
+    Sheets("cover").Select
+    ActiveSheet.Range("E11:F15").Select
+    Selection.ClearContents
+    ActiveSheet.Range("I11:J15").Select
+    Selection.ClearContents
+
+
+'   device number stored in devices_f & devices_r
+    ReDim devices_f(10)
+    ReDim devices_r(10)
+    ReDim devices_f_index(10)
+    ReDim devices_r_index(10)
+    ReDim devices_index(10)
+
+    ii = 11
+    Do While Sheets("cover").Cells(ii, 4) <> ""
+        Sheets("import").Cells(1, ii - 9) = "#" & Sheets("cover").Cells(ii, 4)
+        ii = ii + 1
+    Loop
+
+    If ii <> 11 Then
+        ReDim prod_offset(ii - 12)
+        For jj = 0 To ii - 12
+            prod_offset(jj) = Sheets("import").Cells(2, jj + 2)
+        Next
+
+        Sheets("front").Select
+        dd = 0
+        For jj = 0 To ii - 12
+            For kk = 3 To l_index_f
+                If InStr(ActiveSheet.Range("a" & CStr(kk)), Sheets("cover").Cells(jj + 11, 4)) Then
+                    devices_f(dd) = Sheets("cover").Cells(jj + 11, 4)
+                    devices_f_index(dd) = jj + 11
+                    dd = dd + 1
+                    GoTo nextdevice_f
+                End If
+            Next
+nextdevice_f:
+        Next
+        ReDim Preserve devices_f(dd - 1)
+        ReDim Preserve devices_f_index(dd - 1)
+
+        Sheets("rear").Select
+        dd = 0
+        For jj = 0 To ii - 12
+            For kk = 3 To l_index_r
+                If InStr(ActiveSheet.Range("a" & CStr(kk)), Sheets("cover").Cells(jj + 11, 4)) Then
+                    devices_r(dd) = Sheets("cover").Cells(jj + 11, 4)
+                    devices_r_index(dd) = jj + 11
+                    dd = dd + 1
+                    GoTo nextdevice_r
+                End If
+            Next
+nextdevice_r:
+        Next
+        ReDim Preserve devices_r(dd - 1)
+        ReDim Preserve devices_r_index(dd - 1)
+    ElseIf ii = 11 Then
+        ReDim prod_offset(0)
+        bound = -1
+    End If
+
+
     Sheets("import").Select
 
-    'clear original data
+
+   'clear original data
     Rows("30:30").Select
     ActiveWindow.SmallScroll Down:=138
     Rows("30:186").Select
@@ -169,8 +236,11 @@ Private Sub CommandButton1_Click()
         .TintAndShade = 0
         .PatternTintAndShade = 0
     End With
-
     ActiveSheet.Range("b31").Resize(1, UBound(fre) + 1).Value = fre
+
+
+
+
 
     Sheets("front").Select
     If l_index_f <> 3 Then
@@ -182,6 +252,102 @@ Private Sub CommandButton1_Click()
         ActiveSheet.Paste
         ActiveSheet.Range("a31") = "Front_Hz"
         ActiveSheet.Range("b" & CStr(30 + l_index_f)).Resize(1, UBound(fre) + 1).Value = fre
+
+        If bound = 0 Then
+            bound = UBound(devices_f)
+        End If
+
+
+        'include the calibration
+        For ii = 3 To l_index_f - 1
+            For dd = 0 To bound
+                If InStr(ActiveSheet.Cells(29 + ii, 1), devices_f(dd)) Then
+                    temp_offset = prod_offset(dd)
+                Else
+                    temp_offset = 0
+                End If
+            Next
+            For jj = 3 To UBound(msg_dfs_off_f) + 3
+                ActiveSheet.Cells(29 + ii, jj - 1) = Sheets("front").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj) - temp_offset
+            Next
+        Next
+
+
+    '    get the max of the margin
+        ActiveSheet.Cells(30 + l_index_f + l_index_r, 1) = "Hz"
+        For jj = 2 To UBound(msg_dfs_off_f) + 2
+            ActiveSheet.Cells(30 + l_index_f + l_index_r, jj) = ActiveSheet.Cells(30 + l_index_f, jj)
+        Next
+        ActiveSheet.Cells(31 + l_index_f + l_index_r, 1) = Sheets("calibration").Cells(12, 2) & "_plusMargin"
+        ActiveSheet.Cells(32 + l_index_f + l_index_r, 1) = "MarginLimit"
+        For jj = 2 To UBound(msg_dfs_off_f) + 2
+            ActiveSheet.Cells(31 + l_index_f + l_index_r, jj) = Sheets("calibration").Cells(12, jj + 1) - ActiveSheet.Range("j16")
+            ActiveSheet.Cells(32 + l_index_f + l_index_r, jj) = ActiveSheet.Range("j16")
+        Next
+        ActiveSheet.Range("A" & CStr(34 + l_index_f + l_index_r)) = "Get the margin"
+        ActiveSheet.Range("A" & CStr(34 + l_index_f + l_index_r)).Select
+        Selection.Font.Bold = True
+        With Selection.Interior
+            .Pattern = xlSolid
+            .PatternColorIndex = xlAutomatic
+            .Color = 65535
+            .TintAndShade = 0
+            .PatternTintAndShade = 0
+        End With
+        ActiveSheet.Cells(35 + l_index_f + l_index_r, 1) = "Hz"
+        For jj = 2 To UBound(msg_dfs_off_f) + 2
+            ActiveSheet.Cells(35 + l_index_f + l_index_r, jj) = ActiveSheet.Cells(31, jj)
+        Next
+        ActiveSheet.Cells(35 + l_index_f + l_index_r, jj + 1) = "Max"
+
+
+        For ii = 3 To l_index_f - 1
+            ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, 1) = ActiveSheet.Cells(29 + ii, 1) & "_Margin"
+
+            For jj = 2 To UBound(msg_dfs_off_f) + 2
+                ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, jj) = ActiveSheet.Cells(31 + l_index_f + l_index_r, jj) - _
+                ActiveSheet.Cells(29 + ii, jj) + ActiveSheet.Range("j16")
+            Next
+            ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, jj + 1).FormulaR1C1 = "=MAX(RC[-" & CStr(jj - 1) & "]:RC[-2])"
+        Next
+
+
+        For kk = 0 To bound
+
+            ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35), ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35)).End(xlDown)).Select
+            Selection.Find(What:="front*" & devices_f(kk), After:=ActiveCell, LookIn:=xlFormulas, _
+                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                MatchCase:=False, SearchFormat:=False).Activate
+            row_no = ActiveCell.Row
+
+            ' count how many curves in one device name
+            ii = row_no
+            jj = 0
+            Do While ActiveSheet.Range("a" & CStr(ii)) <> ""
+                If InStr(ActiveSheet.Range("a" & CStr(ii)), devices_f(kk)) Then
+                    devices_index(jj) = ii
+                    jj = jj + 1
+                End If
+                ii = ii + 1
+
+            Loop
+
+            If jj <> 0 Then
+                Sheets("import").Cells(row_no, UBound(msg_dfs_off_f) + 5).Select
+                path = "R[0]C[-1]"
+                For ii = 2 To jj
+                    path = path & ",R[" & CStr(devices_index(ii - 1) - row_no) & "]C[-1]"
+                Next
+                ActiveCell.FormulaR1C1 = "=MAX(" & path & ")"
+
+                Sheets("cover").Cells(devices_f_index(kk), 5) = ActiveCell
+            Else
+                MsgBox devices_f(kk) & " data no found"
+                End
+            End If
+
+        Next
+
     End If
 
 
@@ -193,157 +359,217 @@ Private Sub CommandButton1_Click()
         ActiveSheet.Range("a" & CStr(30 + l_index_f)).Select
         ActiveSheet.Paste
         ActiveSheet.Range("a" & CStr(30 + l_index_f)) = "Rear_Hz"
-    End If
 
-
-
-    'include the calibration
-    If l_index_f <> 3 Then
-        For ii = 3 To l_index_f - 1
-            For jj = 3 To UBound(msg_dfs_off_f) + 3
-                ActiveSheet.Cells(29 + ii, jj - 1) = Sheets("front").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj)
-            Next
-
-
-        Next
-    End If
-
-    If l_index_r <> 3 Then
-
-'        Sheets("rear").Select
+        'include the calibration
         For ii = 3 To l_index_r - 1
+            For dd = 0 To UBound(devices_r)
+                If InStr(ActiveSheet.Cells(28 + l_index_f + ii, 1), devices_f(dd)) Then
+                    temp_offset = prod_offset(dd)
+                Else
+                    temp_offset = 0
+
+                End If
+            Next
             For jj = 3 To UBound(msg_dfs_off_f) + 3
-                ActiveSheet.Cells(28 + l_index_f + ii, jj - 1) = Sheets("rear").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj)
+                ActiveSheet.Cells(28 + l_index_f + ii, jj - 1) = Sheets("rear").Cells(ii, jj - 1) - Sheets("calibration").Cells(11, jj) - temp_offset
             Next
         Next
 
-    End If
 
-    Application.CutCopyMode = False
-
-
-    'get the Margin = FOIG - MSIG
-
-'   device number stored in devices()
-    ii = 11
-    Do While Sheets("cover").Cells(ii, 4) <> ""
-        ii = ii + 1
-    Loop
-    ReDim devices(0 To ii - 12)
-    For jj = 0 To ii - 12
-        devices(jj) = Sheets("cover").Cells(jj + 11, 4)
-    Next
-
-
-    If l_index_f <> 3 Or l_index_r <> 3 Then
-
-        ActiveSheet.Cells(30 + l_index_f + l_index_r, 1) = "Hz"
-        For jj = 2 To UBound(msg_dfs_off_f) + 2
-            ActiveSheet.Cells(30 + l_index_f + l_index_r, jj) = ActiveSheet.Cells(30 + l_index_f, jj)
-        Next
-
-        ActiveSheet.Cells(31 + l_index_f + l_index_r, 1) = Sheets("calibration").Cells(12, 2) & "_plusMargin"
-        ActiveSheet.Cells(32 + l_index_f + l_index_r, 1) = "MarginLimit"
-        For jj = 2 To UBound(msg_dfs_off_f) + 2
-            ActiveSheet.Cells(31 + l_index_f + l_index_r, jj) = Sheets("calibration").Cells(12, jj + 1) + 10
-            ActiveSheet.Cells(32 + l_index_f + l_index_r, jj) = ActiveSheet.Range("f2")
-        Next
-
-        ActiveSheet.Range("A" & CStr(34 + l_index_f + l_index_r)) = "Get the margin"
-        ActiveSheet.Range("A" & CStr(34 + l_index_f + l_index_r)).Select
-        Selection.Font.Bold = True
-        With Selection.Interior
-            .Pattern = xlSolid
-            .PatternColorIndex = xlAutomatic
-            .Color = 65535
-            .TintAndShade = 0
-            .PatternTintAndShade = 0
-        End With
-
-        ActiveSheet.Cells(35 + l_index_f + l_index_r, 1) = "Hz"
-        For jj = 2 To UBound(msg_dfs_off_f) + 2
-            ActiveSheet.Cells(35 + l_index_f + l_index_r, jj) = ActiveSheet.Cells(31, jj)
-        Next
-        ActiveSheet.Cells(35 + l_index_f + l_index_r, jj + 1) = "Max"
-
-    End If
-
-    If l_index_f <> 3 Then
-
-        For ii = 3 To l_index_f - 1
-            ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, 1) = ActiveSheet.Cells(29 + ii, 1) & "_Margin"
-
-            For jj = 2 To UBound(msg_dfs_off_f) + 2
-                ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, jj) = ActiveSheet.Cells(31 + l_index_r + l_index_r, jj) - ActiveSheet.Cells(29 + ii, jj)
-            Next
-            ActiveSheet.Cells(33 + l_index_f + l_index_r + ii, jj + 1).FormulaR1C1 = "=MAX(RC[-" & CStr(jj - 1) & "]:RC[-2])"
-        Next
-
-        For kk = 0 To UBound(devices)
-
-            ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35), ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35)).End(xlDown)).Select
-            Selection.Find(What:="front*" & devices(kk), After:=ActiveCell, LookIn:=xlFormulas, _
-                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
-                MatchCase:=False, SearchFormat:=False).Activate
-            row_no = ActiveCell.Row
-
-            ' count how many curves in one device name
-            ii = 0
-            Do While InStr(ActiveSheet.Range("a" & CStr(row_no + ii)), devices(kk))
-                ii = ii + 1
-            Loop
-
-            If ii <> 0 Then
-                Sheets("import").Cells(row_no, jj + 2).Select
-                ActiveCell.FormulaR1C1 = "=MAX(RC[-1]:R[" & CStr(ii - 1) & "]C[-1])"
-                Sheets("cover").Cells(11 + kk, 5) = ActiveCell
-            Else
-                MsgBox devices(kk) & " data no found"
-                End
-            End If
-
-        Next
-
-    End If
-
-    If l_index_r <> 3 Then
-
+ '    get the max of the margin
         For ii = 3 To l_index_r - 1
             ActiveSheet.Cells(30 + 2 * l_index_f + l_index_r + ii, 1) = ActiveSheet.Cells(28 + l_index_f + ii, 1) & "_Margin"
 
             For jj = 2 To UBound(msg_dfs_off_f) + 2
-                ActiveSheet.Cells(30 + 2 * l_index_f + l_index_r + ii, jj) = ActiveSheet.Cells(31 + l_index_r + l_index_r, jj) - ActiveSheet.Cells(28 + l_index_f + ii, jj)
+                ActiveSheet.Cells(30 + 2 * l_index_f + l_index_r + ii, jj) = ActiveSheet.Cells(31 + l_index_f + l_index_r, jj) - _
+                ActiveSheet.Cells(28 + l_index_f + ii, jj) + ActiveSheet.Range("j16")
             Next
             ActiveSheet.Cells(30 + 2 * l_index_f + l_index_r + ii, jj + 1).FormulaR1C1 = "=MAX(RC[-" & CStr(jj - 1) & "]:RC[-2])"
+
+        Next
+
+        If bound = 0 Then
+            bound = UBound(devices_r)
+        End If
+
+
+        For kk = 0 To bound
+
+            If l_index_r > 4 Then
+                ActiveSheet.Range("a" & CStr(2 * l_index_f + l_index_r + 32), ActiveSheet.Range("a" & CStr(2 * l_index_f + l_index_r + 32)).End(xlDown)).Select
+            ElseIf l_index_r = 4 Then
+                ActiveSheet.Range("a" & CStr(2 * l_index_f + l_index_r + 33)).Select
+            End If
+
+            Selection.Find(What:="rear*" & devices_r(kk), After:=ActiveCell, LookIn:=xlFormulas, _
+                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                MatchCase:=False, SearchFormat:=False).Activate
+            row_no = ActiveCell.Row
+
+
+            ' count how many curves in one device name
+            ii = row_no
+            jj = 0
+            Do While ActiveSheet.Range("a" & CStr(ii)) <> ""
+                If InStr(ActiveSheet.Range("a" & CStr(ii)), devices_f(kk)) Then
+                    devices_index(jj) = ii
+                    jj = jj + 1
+                End If
+                ii = ii + 1
+
+            Loop
+
+            If jj <> 0 Then
+                Sheets("import").Cells(row_no, UBound(msg_dfs_off_r) + 5).Select
+                path = "R[0]C[-1]"
+                For ii = 2 To jj
+                    path = path & ",R[" & CStr(devices_index(ii - 1) - row_no) & "]C[-1]"
+                Next
+                ActiveCell.FormulaR1C1 = "=MAX(" & path & ")"
+
+                Sheets("cover").Cells(devices_r_index(kk), 6) = ActiveCell
+            Else
+                MsgBox devices_f(kk) & " data no found"
+                End
+            End If
+
         Next
 
 
-        For kk = 0 To UBound(devices)
+    End If
+
+
+    Application.CutCopyMode = False
+
+
+'    ======================= another 5 devices =======================
+'   device number stored in devices_f & devices_r
+    bound = 0
+
+    ReDim devices_f(10)
+    ReDim devices_r(10)
+    ReDim devices_f_index(10)
+    ReDim devices_r_index(10)
+    ii = 11
+    Do While Sheets("cover").Cells(ii, 8) <> ""
+        ii = ii + 1
+    Loop
+
+    If ii <> 11 Then
+
+        Sheets("front").Select
+        dd = 0
+        For jj = 0 To ii - 12
+            For kk = 3 To l_index_f
+                If InStr(ActiveSheet.Range("a" & CStr(kk)), Sheets("cover").Cells(jj + 11, 8)) Then
+                    devices_f(dd) = Sheets("cover").Cells(jj + 11, 8)
+                    devices_f_index(dd) = jj + 11
+                    dd = dd + 1
+                    GoTo nextdevice_f_1
+                End If
+            Next
+nextdevice_f_1:
+        Next
+        ReDim Preserve devices_f(dd - 1)
+        ReDim Preserve devices_f_index(dd - 1)
+
+        Sheets("rear").Select
+        dd = 0
+        For jj = 0 To ii - 12
+            For kk = 3 To l_index_r
+                If InStr(ActiveSheet.Range("a" & CStr(kk)), Sheets("cover").Cells(jj + 11, 8)) Then
+                    devices_r(dd) = Sheets("cover").Cells(jj + 11, 8)
+                    devices_r_index(dd) = jj + 11
+                    dd = dd + 1
+                    GoTo nextdevice_r_1
+                End If
+            Next
+nextdevice_r_1:
+        Next
+        ReDim Preserve devices_r(dd - 1)
+        ReDim Preserve devices_r_index(dd - 1)
+    ElseIf ii = 11 Then
+        bound = -1
+    End If
+
+    Sheets("import").Select
+
+
+'    get the max of the margin
+    If l_index_f <> 3 Then
+
+        If bound = 0 Then
+            bound = UBound(devices_f)
+        End If
+
+        For kk = 0 To bound
 
             ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35), ActiveSheet.Range("a" & CStr(l_index_f + l_index_r + 35)).End(xlDown)).Select
-            Selection.Find(What:="rear*" & devices(kk), After:=ActiveCell, LookIn:=xlFormulas, _
+            Selection.Find(What:="front*" & devices_f(kk), After:=ActiveCell, LookIn:=xlFormulas, _
                 LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
                 MatchCase:=False, SearchFormat:=False).Activate
             row_no = ActiveCell.Row
 
             ' count how many curves in one device name
             ii = 0
-            Do While InStr(ActiveSheet.Range("a" & CStr(row_no + ii)), devices(kk))
+            Do While InStr(ActiveSheet.Range("a" & CStr(row_no + ii)), devices_f(kk))
                 ii = ii + 1
             Loop
 
             If ii <> 0 Then
-                Sheets("import").Cells(row_no, jj + 2).Select
+                Sheets("import").Cells(row_no, UBound(msg_dfs_off_f) + 5).Select
                 ActiveCell.FormulaR1C1 = "=MAX(RC[-1]:R[" & CStr(ii - 1) & "]C[-1])"
-                Sheets("cover").Cells(11 + kk, 6) = ActiveCell
+                Sheets("cover").Cells(devices_f_index(kk), 9) = ActiveCell
             Else
-                MsgBox devices(kk) & " data no found"
+                MsgBox devices_f(kk) & " data no found"
                 End
             End If
+
+        Next
+
+    End If
+
+    If l_index_r <> 3 Then
+
+        If bound = 0 Then
+            bound = UBound(devices_r)
+        End If
+
+
+        For kk = 0 To bound
+
+            If l_index_r > 4 Then
+                ActiveSheet.Range("a" & CStr(2 * l_index_f + l_index_r + 33), ActiveSheet.Range("a" & CStr(2 * l_index_f + l_index_r + 33)).End(xlDown)).Select
+            ElseIf l_index_r = 4 Then
+                ActiveSheet.Range("a" & CStr(2 * l_index_f + l_index_r + 33)).Select
+            End If
+
+            Selection.Find(What:="rear*" & devices_r(kk), After:=ActiveCell, LookIn:=xlFormulas, _
+                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                MatchCase:=False, SearchFormat:=False).Activate
+            row_no = ActiveCell.Row
+
+            ' count how many curves in one device name
+            ii = 0
+            Do While InStr(ActiveSheet.Range("a" & CStr(row_no + ii)), devices_r(kk))
+                ii = ii + 1
+            Loop
+
+            If ii <> 0 Then
+                Sheets("import").Cells(row_no, UBound(msg_dfs_off_f) + 5).Select
+                ActiveCell.FormulaR1C1 = "=MAX(RC[-1]:R[" & CStr(ii - 1) & "]C[-1])"
+                Sheets("cover").Cells(devices_r_index(kk), 10) = ActiveCell
+            Else
+                MsgBox devices_r(kk) & " data no found"
+                End
+            End If
+
         Next
 
 
     End If
+
+
 
 
         '------------- plot the output:msg curves ------------
@@ -504,9 +730,9 @@ Private Sub CommandButton1_Click()
         ActiveChart.PlotArea.Select
         'ActiveChart.FullSeriesCollection(18).Select
         ActiveChart.SeriesCollection.NewSeries
-        ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$" & CStr(31 + l_index_f + l_index_r)
-        ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$" & CStr(30 + l_index_f + l_index_r) & ":$DY$" & CStr(30 + l_index_f + l_index_r)
-        ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$" & CStr(31 + l_index_f + l_index_r) & ":$DY$" & CStr(31 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection.Item(l_index_r - 2).Name = "=import!$A$" & CStr(31 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_r - 2).XValues = "=import!$B$" & CStr(30 + l_index_f + l_index_r) & ":$DY$" & CStr(30 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_r - 2).Values = "=import!$B$" & CStr(31 + l_index_f + l_index_r) & ":$DY$" & CStr(31 + l_index_f + l_index_r)
 
 
         ActiveChart.FullSeriesCollection(l_index_r - 2).Select
@@ -595,9 +821,9 @@ Private Sub CommandButton1_Click()
         ActiveChart.PlotArea.Select
         'ActiveChart.FullSeriesCollection(18).Select
         ActiveChart.SeriesCollection.NewSeries
-        ActiveChart.FullSeriesCollection.Item(l_index_f - 2).Name = "=import!$A$" & CStr(32 + l_index_f + l_index_r)
-        ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$" & CStr(30 + l_index_f + l_index_r) & ":$DY$" & CStr(30 + l_index_f + l_index_r)
-        ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$" & CStr(32 + l_index_f + l_index_r) & ":$DY$" & CStr(32 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection.Item(l_index_r + l_index_f - 5).Name = "=import!$A$" & CStr(32 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_r + l_index_f - 5).XValues = "=import!$B$" & CStr(30 + l_index_f + l_index_r) & ":$DY$" & CStr(30 + l_index_f + l_index_r)
+        ActiveChart.FullSeriesCollection(l_index_r + l_index_f - 5).Values = "=import!$B$" & CStr(32 + l_index_f + l_index_r) & ":$DY$" & CStr(32 + l_index_f + l_index_r)
 '        If Sheets("import").Range("f16") = "Dooku" Then
 '            ActiveChart.FullSeriesCollection(l_index_f - 2).XValues = "=import!$B$8:$K$8"
 '            ActiveChart.FullSeriesCollection(l_index_f - 2).Values = "=import!$B$9:$K$9"
@@ -608,7 +834,7 @@ Private Sub CommandButton1_Click()
 '        End If
 
 
-        ActiveChart.FullSeriesCollection(l_index_f - 2).Select
+        ActiveChart.FullSeriesCollection(l_index_r + l_index_f - 5).Select
         With Selection.Format.line
             .Visible = msoTrue
             .ForeColor.RGB = RGB(255, 0, 0)
@@ -633,14 +859,15 @@ Private Sub CommandButton1_Click()
 
 
 
-'    Sheets("calibration").Select
-'    ActiveWindow.SelectedSheets.Visible = False
-'    Sheets("front").Select
-'    ActiveWindow.SelectedSheets.Visible = False
-'    Sheets("rear").Select
-'    ActiveWindow.SelectedSheets.Visible = False
+    Sheets("calibration").Select
+    ActiveWindow.SelectedSheets.Visible = False
+    Sheets("front").Select
+    ActiveWindow.SelectedSheets.Visible = False
+    Sheets("rear").Select
+    ActiveWindow.SelectedSheets.Visible = False
 
-'    Sheets("output").Select
+    Sheets("COVER").Select
+    ActiveSheet.Range("a1").Select
 
 
 End Sub
@@ -652,6 +879,7 @@ Public Sub interpolate()
 
 
     Sheets("calibration").Select
+    i = 0
     ActiveSheet.Range("c7", ActiveSheet.Range("c7").End(xlToRight)).Select
 
     For Each valgt In Selection
@@ -678,7 +906,7 @@ Public Sub interpolate()
 
     a = 0
     ActiveSheet.Range("a1").Select
-    ActiveCell.Offset(1, 0).Range("c10", ActiveSheet.Range("c10").End(xlToRight)).Select
+    ActiveCell.offset(1, 0).Range("c10", ActiveSheet.Range("c10").End(xlToRight)).Select
     For Each valgt In Selection
       a = a + 1
       i = 1
@@ -743,7 +971,7 @@ Public Sub interpolate_IG(firmware As String)
 
     a = 0
     ActiveSheet.Range("a1").Select
-    ActiveCell.Offset(2, 0).Range("c10", ActiveSheet.Range("c10").End(xlToRight)).Select
+    ActiveCell.offset(2, 0).Range("c10", ActiveSheet.Range("c10").End(xlToRight)).Select
     For Each valgt In Selection
       a = a + 1
       i = 1
@@ -763,6 +991,7 @@ Public Sub interpolate_IG(firmware As String)
 
 
 End Sub
+
 
 
 Private Sub CommandButton2_Click()

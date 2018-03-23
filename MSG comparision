@@ -10,7 +10,7 @@ Private Sub CommandButton1_Click()
     Dim d()
     Dim files As Integer, row_no As Integer, row_no_gain As Integer, column_end As Integer, msig As Integer
     Dim ii As Integer, jj As Integer, kk As Integer, l_index As Integer, tt As Integer
-    Dim searchTag As String, data_folder As String, devices() As String
+    Dim searchTag As String, data_folder As String, devices() As String, find_or_not As Boolean
 
     files = 1
     row_no = 0
@@ -26,83 +26,11 @@ Private Sub CommandButton1_Click()
     ActiveWindow.SmallScroll Down:=138
     Rows("25:200").Select
     Selection.Delete Shift:=xlUp
-    MsgBox "place OPL txt into (OPL) folder, gainsetting=0 into (gain0) folder; FOG50 into (FOG50) folder" & vbCrLf & "make sure same name between OPL and log files"
+'    MsgBox "place all txt files into one folder" & vbCrLf & "make sure same name between OPL and log files"
 
 '    OPL data
     data_folder = Sheets("MSG_OPL").Range("a2")
-    path = data_folder & "\OPL\"
-    filename = Dir(path & ".\*.txt")
-    Do While filename <> ""
-
-        l = InStr(filename, ".txt")
-        curvename = Mid(filename, 1, l - 1)
-
-        Set fso = CreateObject("scripting.filesystemobject")
-        Set f = fso.opentextfile(path & filename, 1)
-
-        a = f.readall
-    '    split by enter
-        Data = Split(a, vbCrLf)
-        ReDim freq(0 To UBound(Data) - 1)
-        ReDim d(0 To UBound(Data) - 1)
-
-
-        For ii = 0 To UBound(Data) - 1
-            temp = Split(Data(ii), vbTab)
-            freq(ii) = Trim(temp(0))
-            d(ii) = Trim(temp(1))
-        Next
-
-        Sheets("MSG_OPL").Select
-        If files = 1 Then
-            ActiveSheet.Range("a" & CStr(l_index)) = "Hz"
-            ActiveSheet.Range("b" & CStr(l_index)).Resize(1, UBound(d) + 1).Value = freq
-        End If
-
-        ActiveSheet.Range("a" & CStr(files + l_index)) = curvename
-        ActiveSheet.Range("b" & CStr(files + l_index)).Resize(1, UBound(d) + 1).Value = d
-
-        filename = Dir
-        files = files + 1
-    Loop
-
-    path = data_folder & "\FOG50\"
-    filename = Dir(path & ".\*.txt")
-    Do While filename <> ""
-
-        l = InStr(filename, ".txt")
-        curvename = Mid(filename, 1, l - 1)
-
-        Set fso = CreateObject("scripting.filesystemobject")
-        Set f = fso.opentextfile(path & filename, 1)
-
-        a = f.readall
-    '    split by enter
-        Data = Split(a, vbCrLf)
-        ReDim freq(0 To UBound(Data) - 1)
-        ReDim d(0 To UBound(Data) - 1)
-
-
-        For ii = 0 To UBound(Data) - 1
-            temp = Split(Data(ii), vbTab)
-            freq(ii) = Trim(temp(0))
-            d(ii) = Trim(temp(1))
-        Next
-
-        Sheets("MSG_OPL").Select
-        If files = 1 Then
-            ActiveSheet.Range("a" & CStr(l_index)) = "Hz"
-            ActiveSheet.Range("b" & CStr(l_index)).Resize(1, UBound(d) + 1).Value = freq
-        End If
-
-        ActiveSheet.Range("a" & CStr(files + l_index)) = curvename
-        ActiveSheet.Range("b" & CStr(files + l_index)).Resize(1, UBound(d) + 1).Value = d
-
-        filename = Dir
-        files = files + 1
-    Loop
-
-    path = data_folder & "\gain0\"
+    path = data_folder & "\"
     filename = Dir(path & ".\*.txt")
     Do While filename <> ""
 
@@ -146,7 +74,7 @@ Private Sub CommandButton1_Click()
 '    make the MSG data from OPL and MSG from MSIG
 
     If files <> 1 Then
-        Call interpolate_r40(files)
+        Call interpolate_opl(files)
 
         Sheets("MSG_OPL").Select
 
@@ -155,13 +83,20 @@ Private Sub CommandButton1_Click()
         Do While ActiveSheet.Range("b" & CStr(ii)) <> ""
             ii = ii + 1
         Loop
-        ReDim devices(0 To ii - 4)
+
+        If ii <> 3 Then
+            ReDim devices(0 To ii - 4)
+        Else
+            MsgBox "please input the device SN in cell B3"
+            End
+
+        End If
         For jj = 0 To ii - 4
             devices(jj) = ActiveSheet.Range("b" & CStr(jj + 3))
         Next
 
 '        check the data is enough
-        If (files - 1) <> (UBound(devices) + 1) * 10 Then
+        If (files - 1) < (UBound(devices) + 1) * 10 Then
             MsgBox "need enough OPL&FOG50&gain0 data"
             End
         End If
@@ -175,11 +110,12 @@ Private Sub CommandButton1_Click()
         l_index = l_index + msig
 
         '    MSG from OPL
+'        ============================================================== add the FOG50 curves ===============================================
         For kk = 0 To UBound(devices)
             For ii = 11 To 16
 
                 searchTag = ActiveSheet.Range("c" & CStr(ii)) & devices(kk)
-                ActiveSheet.Range("a26", ActiveSheet.Range("a26").End(xlDown)).Select
+                ActiveSheet.Range("a25", ActiveSheet.Range("a25").End(xlDown)).Select
                 Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
                     LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
                     MatchCase:=False, SearchFormat:=False).Activate
@@ -214,15 +150,34 @@ Private Sub CommandButton1_Click()
             End
         End If
 
+
         For kk = 0 To UBound(devices)
             For ii = 11 To 16
-
-                searchTag = ActiveSheet.Range("c" & CStr(ii)) & devices(kk)
+                temp = Split(ActiveSheet.Range("c" & CStr(ii)), "_")
+                searchTag = temp(1) & "*" & temp(2)
                 ActiveSheet.Range("a" & CStr(26 + files), ActiveSheet.Range("a" & CStr(26 + files)).End(xlDown)).Select
                 Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
                     LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
                     MatchCase:=False, SearchFormat:=False).Activate
+
+
+                find_or_not = InStr(ActiveCell, devices(kk))
+                jj = 1
+                Do While Not find_or_not
+                    Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
+                        LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                        MatchCase:=False, SearchFormat:=False).Activate
+
+                    find_or_not = InStr(ActiveCell, devices(kk))
+                    jj = jj + 1
+                    If jj > msig Then
+                        MsgBox "cannot find the device in the DFS logs, please check"
+                        End
+                    End If
+                Loop
+
                 row_no = ActiveCell.Row
+
 
                 If InStr(ActiveSheet.Range("c" & CStr(ii)), "Front") Then
                     searchTag = ActiveSheet.Range("c19") & devices(kk)
@@ -242,6 +197,10 @@ Private Sub CommandButton1_Click()
                     + ActiveSheet.Cells(row_no, jj)
                 Next
             Next
+
+
+
+
         Next
 
         l_index = l_index + 6 * kk
@@ -250,7 +209,7 @@ Private Sub CommandButton1_Click()
         Range(Selection, Selection.End(xlUp)).Select
         Range(Selection, Selection.End(xlToRight)).Select
         ActiveSheet.Shapes.AddChart2(240, xlXYScatterSmoothNoMarkers).Select
-        ActiveChart.SetSourceData Source:=Range("MSG_OPL!$A$44:$CD$56")
+
 
         searchTag = ActiveSheet.ChartObjects(1).Name
 
@@ -284,7 +243,7 @@ Private Sub CommandButton1_Click()
 
 End Sub
 
-Public Sub interpolate_r40(files As Integer)
+Public Sub interpolate_opl(files As Integer)
 
 
     Dim x As Double, y As Double, a As Integer, maxbase As Integer, i As Integer, valgt As Variant, targetfrekarray(1 To 1000) As Double, frekvensarray(1 To 1000) As Double, talarray(1 To 1000) As Double, cellearray(1 To 5) As Boolean, trange As Range
@@ -308,6 +267,7 @@ Public Sub interpolate_r40(files As Integer)
 
         Sheets("import").Select
         ActiveSheet.Range("b31", ActiveSheet.Range("b31").End(xlToRight)).Select
+        i = 0
         For Each valgt In Selection
           i = i + 1
             frekvensarray(i) = valgt
@@ -338,9 +298,9 @@ Public Sub interpolate_r40(files As Integer)
         Next
 
         a = 0
-        ActiveSheet.Range("a" & CStr(files + 25 + ii)) = curve & "_msig_R40"
+        ActiveSheet.Range("a" & CStr(files + 25 + ii)) = curve & "_msig_OplFreq"
         ActiveSheet.Range("a1").Select
-        ActiveCell.Offset(files + ii, 0).Range("b25", ActiveSheet.Range("b25").End(xlToRight)).Select
+        ActiveCell.offset(files + ii, 0).Range("b25", ActiveSheet.Range("b25").End(xlToRight)).Select
         For Each valgt In Selection
           a = a + 1
           i = 1
@@ -356,9 +316,9 @@ Public Sub interpolate_r40(files As Integer)
     Next
 
     ActiveSheet.Range("a1").Select
-    ActiveCell.Offset(files + ii + 1, 0).Range("a25") = "Hz"
+    ActiveCell.offset(files + ii + 1, 0).Range("a25") = "Hz"
     ActiveSheet.Range("a1").Select
-    ActiveCell.Offset(files + ii + 1, 0).Range("b25", ActiveSheet.Range("b25").End(xlToRight)).Select
+    ActiveCell.offset(files + ii + 1, 0).Range("b25", ActiveSheet.Range("b25").End(xlToRight)).Select
 
     i = 0
     For Each valgt In Selection
