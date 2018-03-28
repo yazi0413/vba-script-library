@@ -865,6 +865,8 @@ nextdevice_r_1:
     ActiveWindow.SelectedSheets.Visible = False
     Sheets("rear").Select
     ActiveWindow.SelectedSheets.Visible = False
+    Sheets("import").Select
+    ActiveSheet.Range("a1").Select
 
     Sheets("COVER").Select
     ActiveSheet.Range("a1").Select
@@ -984,7 +986,7 @@ Public Sub interpolate_IG(firmware As String)
       valgt.Value = talarray(i) + (talarray(i + 1) - talarray(i)) * (targetfrekarray(a) - frekvensarray(i)) / (frekvensarray(i + 1) - frekvensarray(i))
     Next
 
-
+    
     'Selection.Copy
     'Range("c5").Select
     'Windows("personal.xls").Visible = False

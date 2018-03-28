@@ -132,17 +132,39 @@ Private Sub CommandButton1_Click()
                     MatchCase:=False, SearchFormat:=False).Activate
                 row_no_gain = ActiveCell.Row
 
-                ActiveSheet.Range("a" & CStr(l_index - 8 + ii + 6 * kk)) = ActiveSheet.Range("c" & CStr(ii)) & devices(kk) & "_MSG_opl"
+                ActiveSheet.Range("a" & CStr(l_index - 8 + ii + 8 * kk)) = ActiveSheet.Range("c" & CStr(ii)) & devices(kk) & "_MSG_opl"
 
                 For jj = 2 To column_end
-                    ActiveSheet.Cells(l_index - 8 + ii + 6 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj) _
+                    ActiveSheet.Cells(l_index - 8 + ii + 8 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj) _
                     - ActiveSheet.Cells(row_no, jj)
                 Next
             Next
+
+'            add front and rear FOG50 curves for each device
+            searchTag = ActiveSheet.Range("c17") & devices(kk)
+            ActiveSheet.Range("a26", ActiveSheet.Range("a26").End(xlDown)).Select
+            Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
+                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                MatchCase:=False, SearchFormat:=False).Activate
+            row_no_gain = ActiveCell.Row
+            For jj = 1 To column_end
+                ActiveSheet.Cells(l_index - 8 + ii + 8 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj)
+            Next
+
+            searchTag = ActiveSheet.Range("c18") & devices(kk)
+            ActiveSheet.Range("a26", ActiveSheet.Range("a26").End(xlDown)).Select
+            Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
+                LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+                MatchCase:=False, SearchFormat:=False).Activate
+            row_no_gain = ActiveCell.Row
+            For jj = 1 To column_end
+                ActiveSheet.Cells(l_index - 7 + ii + 8 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj)
+            Next
+
         Next
 
 
-        l_index = l_index + 2 + 6 * kk
+        l_index = l_index + 2 + 8 * kk
 
 '        MSG from MSIG
         If msig < (UBound(devices) + 1) * 6 Then
@@ -154,7 +176,7 @@ Private Sub CommandButton1_Click()
         For kk = 0 To UBound(devices)
             For ii = 11 To 16
                 temp = Split(ActiveSheet.Range("c" & CStr(ii)), "_")
-                searchTag = temp(1) & "*" & temp(2)
+                searchTag = temp(0) & "*" & temp(1)
                 ActiveSheet.Range("a" & CStr(26 + files), ActiveSheet.Range("a" & CStr(26 + files)).End(xlDown)).Select
                 Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
                     LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
