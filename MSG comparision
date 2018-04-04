@@ -110,7 +110,7 @@ Private Sub CommandButton1_Click()
         l_index = l_index + msig
 
         '    MSG from OPL
-'        ============================================================== add the FOG50 curves ===============================================
+'  add the FOG50 curves
         For kk = 0 To UBound(devices)
             For ii = 11 To 16
 
@@ -147,8 +147,9 @@ Private Sub CommandButton1_Click()
                 LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
                 MatchCase:=False, SearchFormat:=False).Activate
             row_no_gain = ActiveCell.Row
-            For jj = 1 To column_end
-                ActiveSheet.Cells(l_index - 8 + ii + 8 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj)
+            ActiveSheet.Cells(l_index - 8 + ii + 8 * kk, 1) = ActiveSheet.Cells(row_no_gain, 1)
+            For jj = 2 To column_end
+                ActiveSheet.Cells(l_index - 8 + ii + 8 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj) - Sheets("import").Cells(16, 10)
             Next
 
             searchTag = ActiveSheet.Range("c18") & devices(kk)
@@ -157,8 +158,9 @@ Private Sub CommandButton1_Click()
                 LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
                 MatchCase:=False, SearchFormat:=False).Activate
             row_no_gain = ActiveCell.Row
-            For jj = 1 To column_end
-                ActiveSheet.Cells(l_index - 7 + ii + 8 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj)
+            ActiveSheet.Cells(l_index - 7 + ii + 8 * kk, 1) = ActiveSheet.Cells(row_no_gain, 1)
+            For jj = 2 To column_end
+                ActiveSheet.Cells(l_index - 7 + ii + 8 * kk, jj) = ActiveSheet.Cells(row_no_gain, jj) - Sheets("import").Cells(16, 10)
             Next
 
         Next
@@ -176,7 +178,7 @@ Private Sub CommandButton1_Click()
         For kk = 0 To UBound(devices)
             For ii = 11 To 16
                 temp = Split(ActiveSheet.Range("c" & CStr(ii)), "_")
-                searchTag = temp(0) & "*" & temp(1)
+                searchTag = temp(0) & "*_" & temp(1) & "_"
                 ActiveSheet.Range("a" & CStr(26 + files), ActiveSheet.Range("a" & CStr(26 + files)).End(xlDown)).Select
                 Selection.Find(What:=searchTag, After:=ActiveCell, LookIn:=xlFormulas, _
                     LookAt:=xlPart, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
